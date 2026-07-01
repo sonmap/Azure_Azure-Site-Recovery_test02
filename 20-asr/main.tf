@@ -99,8 +99,6 @@ resource "azurerm_site_recovery_replicated_vm" "vm" {
   target_recovery_fabric_id               = azurerm_site_recovery_fabric.target.id
   target_recovery_protection_container_id = azurerm_site_recovery_protection_container.target.id
   target_network_id                       = data.azurerm_virtual_network.target.id
-  target_subnet_name                      = each.value.target_subnet_name
-  target_vm_name                          = each.value.target_vm_name
 
   managed_disk {
     disk_id                    = each.value.os_disk_id
@@ -108,6 +106,12 @@ resource "azurerm_site_recovery_replicated_vm" "vm" {
     target_resource_group_id   = data.azurerm_resource_group.target_vm_rg[each.value.target_resource_group_name].id
     target_disk_type           = each.value.target_disk_type
     target_replica_disk_type   = each.value.target_replica_disk_type
+  }
+
+  network_interface {
+    source_network_interface_id = each.value.source_nic_id
+    target_subnet_name          = each.value.target_subnet_name
+    failover_test_subnet_name   = each.value.failover_test_subnet_name
   }
 
   depends_on = [
