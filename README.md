@@ -72,7 +72,7 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-Copy the `vm_ids` and `vm_os_disk_ids` outputs into `20-asr/data/protected_vms.csv`.
+Copy the `vm_ids`, `vm_os_disk_ids`, and `vm_nic_ids` outputs into `20-asr/data/protected_vms.csv`.
 
 ### 4. Enable ASR replication
 
@@ -94,7 +94,7 @@ ASR replication can take time after Terraform creates the protected item. Check 
 | `00-network/data/*.csv` | Seoul/Japan network, subnet, NSG values |
 | `10-vm/data/virtual_machines.csv` | Source VM list |
 | `20-asr/data/asr_settings.csv` | Vault, ASR fabric/container, policy, cache storage settings |
-| `20-asr/data/protected_vms.csv` | Source VM ID and OS disk ID to protect |
+| `20-asr/data/protected_vms.csv` | Source VM ID, OS disk ID, and NIC ID to protect |
 
 ## Notes before production use
 
@@ -110,6 +110,7 @@ ASR replication can take time after Terraform creates the protected item. Check 
 # Show source VM IDs after 10-vm deployment
 terraform -chdir=10-vm output vm_ids
 terraform -chdir=10-vm output vm_os_disk_ids
+terraform -chdir=10-vm output vm_nic_ids
 
 # Show ASR objects after 20-asr deployment
 terraform -chdir=20-asr output
