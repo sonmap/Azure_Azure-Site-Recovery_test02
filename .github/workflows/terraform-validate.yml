@@ -1,0 +1,32 @@
+name: terraform-validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stage:
+          - 00-network
+          - 10-vm
+          - 20-asr
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt
+        run: terraform -chdir=${{ matrix.stage }} fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform -chdir=${{ matrix.stage }} init -backend=false
+
+      - name: Terraform validate
+        run: terraform -chdir=${{ matrix.stage }} validate
