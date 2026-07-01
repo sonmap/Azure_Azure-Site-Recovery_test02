@@ -1,0 +1,3 @@
+nsg_name,resource_group_name,location,description
+nsg-asr-src-app,rg-asr-src-krc,koreacentral,Primary app subnet NSG with ASR outbound rules
+nsg-asr-dr-app,rg-asr-dr-jpe,japaneast,DR app subnet NSG
