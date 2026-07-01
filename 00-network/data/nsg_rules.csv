@@ -1,0 +1,8 @@
+nsg_name,rule_name,priority,direction,access,protocol,source_port_range,destination_port_range,source_address_prefix,destination_address_prefix,description
+nsg-asr-src-app,Allow-SSH-From-Corp,100,Inbound,Allow,Tcp,*,22,10.0.0.0/8,*,Allow SSH from corporate private ranges for lab
+nsg-asr-src-app,Allow-ASR-Out-443,200,Outbound,Allow,Tcp,*,443,*,AzureSiteRecovery,Allow Azure Site Recovery service traffic
+nsg-asr-src-app,Allow-Storage-Out-443,210,Outbound,Allow,Tcp,*,443,*,Storage,Allow cache storage account traffic
+nsg-asr-src-app,Allow-EntraID-Out-443,220,Outbound,Allow,Tcp,*,443,*,AzureActiveDirectory,Allow Microsoft Entra ID authentication traffic
+nsg-asr-src-app,Allow-EventHub-Out-443,230,Outbound,Allow,Tcp,*,443,*,EventHub,Allow ASR monitoring and diagnostics traffic
+nsg-asr-src-app,Allow-GuestHybrid-Out-443,240,Outbound,Allow,Tcp,*,443,*,GuestAndHybridManagement,Allow mobility agent management traffic
+nsg-asr-dr-app,Allow-SSH-From-Corp,100,Inbound,Allow,Tcp,*,22,10.0.0.0/8,*,Allow SSH from corporate private ranges after failover
