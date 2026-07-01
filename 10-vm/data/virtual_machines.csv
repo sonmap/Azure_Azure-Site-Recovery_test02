@@ -1,0 +1,2 @@
+vm_name,computer_name,resource_group_name,location,network_rg,vnet_name,subnet_name,vm_size,admin_username,os_disk_type,image_publisher,image_offer,image_sku,image_version,public_ip_enabled
+vm-asr-app01,asrapp01,rg-asr-src-krc,koreacentral,rg-asr-src-krc,vnet-asr-src-krc,snet-app,Standard_B2s,azureuser,Standard_LRS,Canonical,0001-com-ubuntu-server-jammy,22_04-lts,latest,true
