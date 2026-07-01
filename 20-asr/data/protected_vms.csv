@@ -1,0 +1,2 @@
+replication_name,source_vm_name,source_vm_id,os_disk_id,target_vm_name,target_resource_group_name,target_subnet_name,target_disk_type,target_replica_disk_type
+asr-vm-asr-app01,vm-asr-app01,<COPY_FROM_10_VM_OUTPUT_VM_ID>,<COPY_FROM_10_VM_OUTPUT_OS_DISK_ID>,vm-asr-app01-dr,rg-asr-dr-jpe,snet-app,Standard_LRS,Standard_LRS
