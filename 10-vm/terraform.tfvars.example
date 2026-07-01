@@ -1,0 +1,5 @@
+tenant_id       = "<TENANT_ID>"
+subscription_id = "<SUBSCRIPTION_ID>"
+
+# Replace with your real public key.
+admin_ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCexample sonmap@example"
