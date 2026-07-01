@@ -1,0 +1,4 @@
+resource_group_name,location,environment,owner,description
+rg-asr-src-krc,koreacentral,dev,sonmap,Primary Seoul resources for ASR source VM
+rg-asr-dr-jpe,japaneast,dr,sonmap,Japan DR resources for ASR failover target
+rg-asr-vault-jpe,japaneast,dr,sonmap,Recovery Services Vault and ASR control plane
