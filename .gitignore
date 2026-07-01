@@ -1,0 +1,44 @@
+# Terraform runtime files
+**/.terraform/
+**/.terraform/*
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/tfplan
+**/*.tfplan
+**/crash.log
+**/crash.*.log
+**/.terraform.tfstate.lock.info
+
+# Local variable files with real tenant, subscription, object IDs, VM IDs, disk IDs, or secrets
+**/*.auto.tfvars
+**/*.auto.tfvars.json
+**/terraform.tfvars
+**/terraform.tfvars.json
+!**/*.tfvars.example
+
+# SSH and cloud credentials
+*.pem
+*.key
+id_rsa*
+**/azureProfile.json
+**/accessTokens.json
+
+# Generated archives and temporary files
+*.zip
+*.tar
+*.tar.gz
+*.tmp
+*.bak
+*.backup
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
