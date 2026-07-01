@@ -1,0 +1,3 @@
+vnet_name,resource_group_name,location,address_space,dns_servers,description
+vnet-asr-src-krc,rg-asr-src-krc,koreacentral,10.10.0.0/16,,Primary Seoul VNet
+vnet-asr-dr-jpe,rg-asr-dr-jpe,japaneast,10.20.0.0/16,,Japan East DR VNet
