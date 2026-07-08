@@ -1,0 +1,29 @@
+field_name,required,source,purpose,example
+inventory_id,true,manual_or_cmdb,Unique inventory row identifier,inv-0001
+tenant_id,true,azure,Microsoft Entra tenant ID,<TENANT_ID>
+management_group,false,azure,Management group name or ID,mg-platform
+subscription_id,true,azure,Azure subscription ID,<SUBSCRIPTION_ID>
+subscription_name,false,azure,Azure subscription display name,sub-dr-lab
+resource_group,true,azure,Resource group name,rg-asr-src-krc
+resource_type,true,azure,Azure resource provider type,Microsoft.Compute/virtualMachines
+resource_name,true,azure,Azure resource name,vm-asr-app01
+resource_id,false,azure_after_deploy,Full Azure resource ID,/<SUBSCRIPTION_ID>/resourceGroups/rg-asr-src-krc/providers/Microsoft.Compute/virtualMachines/vm-asr-app01
+location,true,azure,Azure region,koreacentral
+environment,true,tag,Environment classification,dev
+workload,true,tag,Workload or service name,asr-lab
+application,true,tag,Application name,site-recovery
+service_role,true,tag,Role in application architecture,app
+owner,true,tag,Owner or accountable team,sonmap
+cost_center,false,tag,Cost allocation code,cloud-lab
+criticality,false,tag,Business criticality,medium
+data_classification,false,tag,Data classification,internal
+managed_by,true,tag,Management method,terraform
+iac_tool,true,iac,Infrastructure as Code tool,terraform
+iac_repo,true,iac,Source repository,sonmap/Azure_Azure-Site-Recovery_test02
+iac_path,true,iac,Terraform stack path,10-vm
+backup_enabled,false,tag,Backup target flag,true
+dr_enabled,false,tag,DR target flag,true
+dr_region,false,tag,DR target region,japaneast
+rto_minutes,false,dr,Recovery Time Objective in minutes,60
+rpo_minutes,false,dr,Recovery Point Objective in minutes,15
+tags_json,false,azure,Serialized Azure tags,"{""Environment"":""dev"",""Workload"":""asr-lab""}"
