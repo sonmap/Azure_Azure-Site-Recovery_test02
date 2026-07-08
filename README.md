@@ -43,7 +43,12 @@ Automation Account:       rg-asr-vault-jpe / aa-asr-dr-jpe
 
 The **Internal Load Balancer is for VM redundancy / HA**. It is not a one-to-one access path to a single VM. Traffic Manager DNS is the site-selection layer and should direct clients to the active site's application entry path.
 
-For more detail, see [`docs/architecture-ha-dr.md`](docs/architecture-ha-dr.md).
+The Tomcat application includes a DB status page that attempts a real JDBC connection to MySQL and displays DB host, resolved DB IP, configured DB region, connected DB hostname, database name, DB version, and DB time.
+
+For more detail, see:
+
+- [`docs/architecture-ha-dr.md`](docs/architecture-ha-dr.md)
+- [`docs/db-status-page.md`](docs/db-status-page.md)
 
 ## Folder layout
 
@@ -90,6 +95,17 @@ tenant_id       = "<TENANT_ID>"
 subscription_id = "<SUBSCRIPTION_ID>"
 ```
 
+For the Tomcat DB status page, configure MySQL connection values in `10-vm/sonmap.auto.tfvars`:
+
+```hcl
+mysql_host     = "<MYSQL_FQDN_OR_PRIVATE_IP>"
+mysql_port     = 3306
+mysql_database = "appdb"
+mysql_username = "appuser"
+mysql_password = "<PASSWORD>"
+mysql_region   = "koreacentral"
+```
+
 ### 2. Deploy network
 
 ```bash
@@ -110,6 +126,7 @@ This stage deploys:
 - `vm-asr-app01`
 - `vm-asr-app02`
 - Tomcat on TCP 8080 using cloud-init
+- DB status page: `/db-status.jsp`
 - Primary site Internal Load Balancer `ilb-asr-app-krc`
 - TCP 8080 health probe and load-balancing rule
 
@@ -120,6 +137,13 @@ terraform fmt -recursive
 terraform validate
 terraform plan -out=tfplan
 terraform apply tfplan
+```
+
+After deployment, get the Internal Load Balancer IP and test the DB status page:
+
+```bash
+terraform -chdir=10-vm output internal_load_balancer_private_ip
+curl http://<internal-load-balancer-ip>:8080/db-status.jsp
 ```
 
 ### 4. Generate ASR protected VM data
@@ -169,6 +193,29 @@ After deployment, confirm the Automation Account has the required PowerShell mod
 - `Az.Resources`
 - `Az.Network`
 
+## DB status page
+
+The Tomcat DB status page is deployed at:
+
+```text
+/db-status.jsp
+```
+
+It displays:
+
+- JDBC connection result
+- configured DB host
+- resolved DB IP
+- configured DB region
+- connected DB hostname from MySQL
+- current database
+- DB version
+- DB time
+- web server time
+- connection error, if any
+
+See [`docs/db-status-page.md`](docs/db-status-page.md) for details.
+
 ## Key files to edit
 
 | File | Purpose |
@@ -176,8 +223,9 @@ After deployment, confirm the Automation Account has the required PowerShell mod
 | `inventory/vm_inventory.csv` | Primary workload inventory for Tomcat VMs, ASR, and runbook settings |
 | `inventory/tag_standard.csv` | Azure tag standard |
 | `00-network/data/*.csv` | Seoul/Japan network, subnet, NSG values |
-| `10-vm/cloud-init-tomcat.yaml` | Tomcat installation and test page bootstrap |
+| `10-vm/cloud-init-tomcat.yaml` | Tomcat installation, JDBC driver setup, and DB status page bootstrap |
 | `10-vm/lb.tf` | Primary site Internal Load Balancer for Tomcat VM HA |
+| `10-vm/terraform.tfvars.example` | Example MySQL connection variables for DB status page |
 | `20-asr/data/asr_settings.csv` | Vault, ASR fabric/container, policy, cache storage settings |
 | `20-asr/data/protected_vms.csv` | Generated ASR source VM ID, OS disk ID, and NIC ID data |
 | `30-runbook/data/runbook_settings.csv` | Automation Account and ASR vault settings |
@@ -188,11 +236,13 @@ After deployment, confirm the Automation Account has the required PowerShell mod
 - Replace the example SSH public key with your own key.
 - Change the cache storage account name. Azure Storage account names must be globally unique.
 - For private-only enterprise networks, replace public SSH access with Bastion, VPN, ExpressRoute, or jumpbox access.
-- Confirm source VM outbound access to Azure Site Recovery, Storage, Microsoft Entra ID, Event Hub, and GuestAndHybridManagement service tags on TCP 443.
+- Confirm source VM outbound access to Azure Site Recovery, Storage, Microsoft Entra ID, Event Hub, GuestAndHybridManagement, and package repositories needed for Tomcat/JDBC installation.
 - Traffic Manager DNS is a DNS/site-selection layer. Confirm the actual enterprise ingress path to the private Internal Load Balancer, such as corporate routing, DNS, proxy, VPN, or ExpressRoute.
 - Run **Test failover** before relying on this DR plan.
 - DR-side Internal Load Balancer backend association may require a post-failover runbook or manual validation because ASR-created NICs exist after failover.
 - Do not run `PlannedFailover` or `UnplannedFailover` from Automation without a formal approval process.
+- The DB status page stores connection values from Terraform-rendered cloud-init. This is for lab validation only.
+- Terraform state can contain sensitive values such as `mysql_password`. Use Key Vault, Managed Identity, private endpoints, and a secure state backend before production use.
 - The runbook uses broad lab permissions for simplicity. Reduce permissions before production use.
 
 ## Useful commands
@@ -203,6 +253,9 @@ terraform -chdir=10-vm output vm_ids
 terraform -chdir=10-vm output vm_os_disk_ids
 terraform -chdir=10-vm output vm_nic_ids
 terraform -chdir=10-vm output internal_load_balancer_private_ip
+
+# Test DB status page through the Internal Load Balancer
+curl http://$(terraform -chdir=10-vm output -raw internal_load_balancer_private_ip):8080/db-status.jsp
 
 # Generate ASR protected VM CSV from inventory and Terraform outputs
 python3 scripts/generate_protected_vms.py
