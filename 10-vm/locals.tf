@@ -17,6 +17,20 @@ locals {
     })
   }
 
+  app_vms = {
+    for name, vm in local.virtual_machines : name => vm
+    if vm.role == "app"
+  }
+
+  primary_app_vms = {
+    for name, vm in local.app_vms : name => vm
+    if vm.environment != "dr"
+  }
+
+  primary_app_vm = tolist(values(local.primary_app_vms))[0]
+
+  primary_app_subnet_ref = "${local.primary_app_vm.network_rg}|${local.primary_app_vm.vnet_name}|${local.primary_app_vm.subnet_name}"
+
   subnet_refs = toset([
     for vm in local.virtual_machines : "${vm.network_rg}|${vm.vnet_name}|${vm.subnet_name}"
   ])
