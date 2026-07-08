@@ -22,6 +22,14 @@ output "private_ip_addresses" {
   }
 }
 
+output "internal_load_balancer_private_ip" {
+  value = azurerm_lb.app_internal.frontend_ip_configuration[0].private_ip_address
+}
+
+output "internal_load_balancer_backend_pool_id" {
+  value = azurerm_lb_backend_address_pool.app.id
+}
+
 output "next_step_20_asr_protected_vms_csv" {
-  value = "Copy vm_ids, vm_os_disk_ids, and vm_nic_ids into 20-asr/data/protected_vms.csv before applying 20-asr."
+  value = "Run python3 scripts/generate_protected_vms.py to generate 20-asr/data/protected_vms.csv from inventory and Terraform outputs."
 }
