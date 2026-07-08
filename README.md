@@ -18,29 +18,45 @@ vm-asr-app01  ── ASR replication ────────>  recovered VM on 
 cache storage account                       target managed disks / NIC
 
 Recovery Services Vault: rg-asr-vault-jpe / rsv-asr-dr-jpe
+Automation Account:       rg-asr-vault-jpe / aa-asr-dr-jpe
 ```
 
 ## Folder layout
 
 ```text
 .
+├── inventory/       # Azure-aligned custom inventory and tag schema
 ├── 00-network/      # Primary + DR resource groups, VNets, subnets, NSGs
-├── 10-vm/           # Source VM set in Korea Central
+├── 10-vm/           # Source VM set in Korea Central, driven by inventory/vm_inventory.csv
 ├── 20-asr/          # Recovery Services Vault + ASR replication objects
-├── docs/            # Failover and validation runbook
-└── scripts/         # Convenience deployment script
+├── 30-runbook/      # Azure Automation Account + ASR failover runbook
+├── docs/            # Manual failover and validation runbook
+└── scripts/         # Convenience deployment and inventory generation scripts
 ```
+
+## Inventory model
+
+This repository uses a **custom Azure-aligned inventory standard**.
+
+It is not an Azure-native required file format. The inventory files are Terraform input and operational documentation. After deployment, the actual Azure inventory should be confirmed from Azure Resource Graph, Azure Portal, Azure CLI, or Terraform state.
+
+| File | Purpose |
+| --- | --- |
+| `inventory/azure_inventory_standard.csv` | Common inventory schema aligned to Azure Resource Manager, tags, and IaC metadata |
+| `inventory/tag_standard.csv` | Recommended Azure tag standard for this lab |
+| `inventory/vm_inventory.csv` | VM, ASR, DR, and runbook workload inventory |
 
 ## Deployment order
 
 ### 1. Configure common variables
 
-Each stage has `terraform.tfvars.example`. Copy it locally and never commit the real file.
+Each Terraform stage has `terraform.tfvars.example`. Copy it locally and never commit the real file.
 
 ```bash
 cp 00-network/terraform.tfvars.example 00-network/sonmap.auto.tfvars
 cp 10-vm/terraform.tfvars.example 10-vm/sonmap.auto.tfvars
 cp 20-asr/terraform.tfvars.example 20-asr/sonmap.auto.tfvars
+cp 30-runbook/terraform.tfvars.example 30-runbook/sonmap.auto.tfvars
 ```
 
 Edit each `sonmap.auto.tfvars` with your real values:
@@ -63,6 +79,8 @@ terraform apply tfplan
 
 ### 3. Deploy source VM
 
+`10-vm` reads VM definitions from `inventory/vm_inventory.csv`.
+
 ```bash
 cd ../10-vm
 terraform init
@@ -72,12 +90,26 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-Copy the `vm_ids`, `vm_os_disk_ids`, and `vm_nic_ids` outputs into `20-asr/data/protected_vms.csv`.
+### 4. Generate ASR protected VM data
 
-### 4. Enable ASR replication
+ASR needs Azure resource IDs that only exist after the source VM is created. Generate `20-asr/data/protected_vms.csv` from inventory and Terraform outputs:
 
 ```bash
-cd ../20-asr
+cd ..
+python3 scripts/generate_protected_vms.py
+```
+
+The script reads:
+
+- `inventory/vm_inventory.csv`
+- `terraform -chdir=10-vm output -json vm_ids`
+- `terraform -chdir=10-vm output -json vm_os_disk_ids`
+- `terraform -chdir=10-vm output -json vm_nic_ids`
+
+### 5. Enable ASR replication
+
+```bash
+cd 20-asr
 terraform init
 terraform fmt -recursive
 terraform validate
@@ -87,14 +119,35 @@ terraform apply tfplan
 
 ASR replication can take time after Terraform creates the protected item. Check the Recovery Services Vault > Replicated items page before running a test failover.
 
+### 6. Deploy Automation Runbook
+
+```bash
+cd ../30-runbook
+terraform init
+terraform fmt -recursive
+terraform validate
+terraform plan -out=tfplan
+terraform apply tfplan
+```
+
+After deployment, confirm the Automation Account has the required PowerShell modules:
+
+- `Az.Accounts`
+- `Az.RecoveryServices`
+- `Az.Resources`
+- `Az.Network`
+
 ## Key files to edit
 
 | File | Purpose |
 | --- | --- |
+| `inventory/vm_inventory.csv` | Primary workload inventory for VM, ASR, and runbook settings |
+| `inventory/tag_standard.csv` | Azure tag standard |
 | `00-network/data/*.csv` | Seoul/Japan network, subnet, NSG values |
-| `10-vm/data/virtual_machines.csv` | Source VM list |
 | `20-asr/data/asr_settings.csv` | Vault, ASR fabric/container, policy, cache storage settings |
-| `20-asr/data/protected_vms.csv` | Source VM ID, OS disk ID, and NIC ID to protect |
+| `20-asr/data/protected_vms.csv` | Generated ASR source VM ID, OS disk ID, and NIC ID data |
+| `30-runbook/data/runbook_settings.csv` | Automation Account and ASR vault settings |
+| `30-runbook/runbooks/Invoke-AsrFailover.ps1` | ASR status, test failover, cleanup, planned failover, and unplanned failover script |
 
 ## Notes before production use
 
@@ -103,6 +156,8 @@ ASR replication can take time after Terraform creates the protected item. Check 
 - For private-only enterprise networks, replace public SSH access with Bastion, VPN, ExpressRoute, or jumpbox access.
 - Confirm source VM outbound access to Azure Site Recovery, Storage, Microsoft Entra ID, Event Hub, and GuestAndHybridManagement service tags on TCP 443.
 - Run **Test failover** before relying on this DR plan.
+- Do not run `PlannedFailover` or `UnplannedFailover` from Automation without a formal approval process.
+- The runbook uses broad lab permissions for simplicity. Reduce permissions before production use.
 
 ## Useful commands
 
@@ -112,6 +167,12 @@ terraform -chdir=10-vm output vm_ids
 terraform -chdir=10-vm output vm_os_disk_ids
 terraform -chdir=10-vm output vm_nic_ids
 
+# Generate ASR protected VM CSV from inventory and Terraform outputs
+python3 scripts/generate_protected_vms.py
+
 # Show ASR objects after 20-asr deployment
 terraform -chdir=20-asr output
+
+# Show Automation runbook objects after 30-runbook deployment
+terraform -chdir=30-runbook output
 ```
