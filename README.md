@@ -9,17 +9,41 @@ This repository was built from the staged style of `sonmap/azure-EntraID-AKS-sma
 ## Target architecture
 
 ```text
-Korea Central / Seoul side                 Japan East / DR side
-──────────────────────────                 ─────────────────────────
-rg-asr-src-krc                              rg-asr-dr-jpe
-vnet-asr-src-krc                            vnet-asr-dr-jpe
-snet-app                                    snet-app
-vm-asr-app01  ── ASR replication ────────>  recovered VM on failover
-cache storage account                       target managed disks / NIC
+External Internet
+  ↓
+Traffic Manager DNS
+  ↓
+Active site's Internal Load Balancer
+  ↓
+Tomcat VM HA pair on TCP 8080
+  ↓
+MySQL small DB
+```
+
+```text
+Korea Central / Seoul side                         Japan East / DR side
+──────────────────────────                         ─────────────────────────
+rg-asr-src-krc                                      rg-asr-dr-jpe
+vnet-asr-src-krc                                    vnet-asr-dr-jpe
+snet-app                                            snet-app
+
+Internal Load Balancer                              Internal Load Balancer after failover
+├─ vm-asr-app01 : Linux VM + Tomcat 8080             ├─ vm-asr-app01-dr : Linux VM + Tomcat 8080
+└─ vm-asr-app02 : Linux VM + Tomcat 8080             └─ vm-asr-app02-dr : Linux VM + Tomcat 8080
+
+MySQL small DB                                      MySQL small DB
+Cache Storage Account                               Target managed disks / NICs
+
+vm-asr-app01  ── ASR replication ────────────────>  vm-asr-app01-dr
+vm-asr-app02  ── ASR replication ────────────────>  vm-asr-app02-dr
 
 Recovery Services Vault: rg-asr-vault-jpe / rsv-asr-dr-jpe
 Automation Account:       rg-asr-vault-jpe / aa-asr-dr-jpe
 ```
+
+The **Internal Load Balancer is for VM redundancy / HA**. It is not a one-to-one access path to a single VM. Traffic Manager DNS is the site-selection layer and should direct clients to the active site's application entry path.
+
+For more detail, see [`docs/architecture-ha-dr.md`](docs/architecture-ha-dr.md).
 
 ## Folder layout
 
@@ -27,10 +51,10 @@ Automation Account:       rg-asr-vault-jpe / aa-asr-dr-jpe
 .
 ├── inventory/       # Azure-aligned custom inventory and tag schema
 ├── 00-network/      # Primary + DR resource groups, VNets, subnets, NSGs
-├── 10-vm/           # Source VM set in Korea Central, driven by inventory/vm_inventory.csv
+├── 10-vm/           # Source Tomcat VM HA pair + Internal Load Balancer
 ├── 20-asr/          # Recovery Services Vault + ASR replication objects
 ├── 30-runbook/      # Azure Automation Account + ASR failover runbook
-├── docs/            # Manual failover and validation runbook
+├── docs/            # Manual failover, validation, and architecture notes
 └── scripts/         # Convenience deployment and inventory generation scripts
 ```
 
@@ -77,9 +101,17 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-### 3. Deploy source VM
+### 3. Deploy source Tomcat VM HA pair
 
 `10-vm` reads VM definitions from `inventory/vm_inventory.csv`.
+
+This stage deploys:
+
+- `vm-asr-app01`
+- `vm-asr-app02`
+- Tomcat on TCP 8080 using cloud-init
+- Primary site Internal Load Balancer `ilb-asr-app-krc`
+- TCP 8080 health probe and load-balancing rule
 
 ```bash
 cd ../10-vm
@@ -92,7 +124,7 @@ terraform apply tfplan
 
 ### 4. Generate ASR protected VM data
 
-ASR needs Azure resource IDs that only exist after the source VM is created. Generate `20-asr/data/protected_vms.csv` from inventory and Terraform outputs:
+ASR needs Azure resource IDs that only exist after the source VMs are created. Generate `20-asr/data/protected_vms.csv` from inventory and Terraform outputs:
 
 ```bash
 cd ..
@@ -117,7 +149,7 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-ASR replication can take time after Terraform creates the protected item. Check the Recovery Services Vault > Replicated items page before running a test failover.
+ASR replication can take time after Terraform creates the protected items. Check the Recovery Services Vault > Replicated items page before running a test failover.
 
 ### 6. Deploy Automation Runbook
 
@@ -141,9 +173,11 @@ After deployment, confirm the Automation Account has the required PowerShell mod
 
 | File | Purpose |
 | --- | --- |
-| `inventory/vm_inventory.csv` | Primary workload inventory for VM, ASR, and runbook settings |
+| `inventory/vm_inventory.csv` | Primary workload inventory for Tomcat VMs, ASR, and runbook settings |
 | `inventory/tag_standard.csv` | Azure tag standard |
 | `00-network/data/*.csv` | Seoul/Japan network, subnet, NSG values |
+| `10-vm/cloud-init-tomcat.yaml` | Tomcat installation and test page bootstrap |
+| `10-vm/lb.tf` | Primary site Internal Load Balancer for Tomcat VM HA |
 | `20-asr/data/asr_settings.csv` | Vault, ASR fabric/container, policy, cache storage settings |
 | `20-asr/data/protected_vms.csv` | Generated ASR source VM ID, OS disk ID, and NIC ID data |
 | `30-runbook/data/runbook_settings.csv` | Automation Account and ASR vault settings |
@@ -155,7 +189,9 @@ After deployment, confirm the Automation Account has the required PowerShell mod
 - Change the cache storage account name. Azure Storage account names must be globally unique.
 - For private-only enterprise networks, replace public SSH access with Bastion, VPN, ExpressRoute, or jumpbox access.
 - Confirm source VM outbound access to Azure Site Recovery, Storage, Microsoft Entra ID, Event Hub, and GuestAndHybridManagement service tags on TCP 443.
+- Traffic Manager DNS is a DNS/site-selection layer. Confirm the actual enterprise ingress path to the private Internal Load Balancer, such as corporate routing, DNS, proxy, VPN, or ExpressRoute.
 - Run **Test failover** before relying on this DR plan.
+- DR-side Internal Load Balancer backend association may require a post-failover runbook or manual validation because ASR-created NICs exist after failover.
 - Do not run `PlannedFailover` or `UnplannedFailover` from Automation without a formal approval process.
 - The runbook uses broad lab permissions for simplicity. Reduce permissions before production use.
 
@@ -166,6 +202,7 @@ After deployment, confirm the Automation Account has the required PowerShell mod
 terraform -chdir=10-vm output vm_ids
 terraform -chdir=10-vm output vm_os_disk_ids
 terraform -chdir=10-vm output vm_nic_ids
+terraform -chdir=10-vm output internal_load_balancer_private_ip
 
 # Generate ASR protected VM CSV from inventory and Terraform outputs
 python3 scripts/generate_protected_vms.py
