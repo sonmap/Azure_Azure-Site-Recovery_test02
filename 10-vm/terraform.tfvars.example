@@ -3,3 +3,12 @@ subscription_id = "<SUBSCRIPTION_ID>"
 
 # Replace with your real public key.
 admin_ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCexample sonmap@example"
+
+# Tomcat DB status page settings.
+# The JSP page uses these values to connect to MySQL and display DB host/IP/region information.
+mysql_host     = "mysql-placeholder.mysql.database.azure.com"
+mysql_port     = 3306
+mysql_database = "appdb"
+mysql_username = "appuser"
+mysql_password = "ChangeMe-DoNotUse"
+mysql_region   = "koreacentral"

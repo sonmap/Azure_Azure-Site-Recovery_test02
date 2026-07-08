@@ -1,0 +1,13 @@
+tag_name,required,allowed_values,example,purpose
+Environment,true,dev|qa|prod|dr,dev,Environment classification
+Workload,true,free_text,asr-lab,Workload or service name
+Application,true,free_text,site-recovery,Application name
+Owner,true,free_text,sonmap,Service or technical owner
+CostCenter,false,free_text,cloud-lab,Cost allocation
+ManagedBy,true,terraform|manual|bicep|arm,terraform,Management method
+Criticality,false,low|medium|high|mission-critical,medium,Business criticality
+DataClassification,false,public|internal|confidential|restricted,internal,Data classification
+Backup,false,enabled|disabled,enabled,Backup target flag
+DR,false,enabled|disabled,enabled,Disaster recovery target flag
+RTO,false,minutes,60,Recovery Time Objective
+RPO,false,minutes,15,Recovery Point Objective

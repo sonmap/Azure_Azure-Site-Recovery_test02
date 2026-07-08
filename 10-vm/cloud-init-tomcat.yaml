@@ -1,0 +1,110 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+packages:
+  - tomcat9
+  - curl
+  - openjdk-11-jdk
+  - libmariadb-java
+
+write_files:
+  - path: /var/lib/tomcat9/webapps/ROOT/index.html
+    owner: tomcat:tomcat
+    permissions: '0644'
+    content: |
+      <html>
+        <head><title>ASR Tomcat Lab</title></head>
+        <body>
+          <h1>ASR Tomcat Lab</h1>
+          <p>Tomcat 8080 is running on this VM.</p>
+          <p><a href="/db-status.jsp">DB Status Page</a></p>
+        </body>
+      </html>
+
+  - path: /var/lib/tomcat9/webapps/ROOT/db-status.jsp
+    owner: tomcat:tomcat
+    permissions: '0644'
+    content: |
+      <%@ page import="java.sql.*,java.net.*,java.time.*" %>
+      <%
+        String dbHost = "${mysql_host}";
+        String dbPort = "${mysql_port}";
+        String dbName = "${mysql_database}";
+        String dbUser = "${mysql_username}";
+        String dbPassword = "${mysql_password}";
+        String dbRegion = "${mysql_region}";
+        String jdbcUrl = "jdbc:mariadb://" + dbHost + ":" + dbPort + "/" + dbName + "?useUnicode=true&characterEncoding=utf8&connectTimeout=5000&socketTimeout=5000";
+
+        String resolvedIp = "N/A";
+        String connectionStatus = "FAILED";
+        String errorMessage = "";
+        String dbHostname = "N/A";
+        String dbVersion = "N/A";
+        String currentDatabase = "N/A";
+        String dbNow = "N/A";
+
+        try {
+          resolvedIp = InetAddress.getByName(dbHost).getHostAddress();
+        } catch (Exception dnsEx) {
+          resolvedIp = "DNS lookup failed: " + dnsEx.getMessage();
+        }
+
+        try {
+          Class.forName("org.mariadb.jdbc.Driver");
+          Connection conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPassword);
+          Statement stmt = conn.createStatement();
+          ResultSet rs = stmt.executeQuery("SELECT @@hostname AS db_hostname, @@version AS db_version, DATABASE() AS current_database, NOW() AS db_now");
+          if (rs.next()) {
+            dbHostname = rs.getString("db_hostname");
+            dbVersion = rs.getString("db_version");
+            currentDatabase = rs.getString("current_database");
+            dbNow = rs.getString("db_now");
+          }
+          rs.close();
+          stmt.close();
+          conn.close();
+          connectionStatus = "SUCCESS";
+        } catch (Exception ex) {
+          errorMessage = ex.getClass().getName() + ": " + ex.getMessage();
+        }
+      %>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Tomcat DB Status</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 32px; background: #f7fbff; color: #1f2937; }
+          h1 { color: #0755b8; }
+          table { border-collapse: collapse; width: 760px; background: white; }
+          th, td { border: 1px solid #d6e4f5; padding: 10px; text-align: left; }
+          th { background: #eaf3ff; width: 260px; }
+          .ok { color: #107c10; font-weight: bold; }
+          .fail { color: #d13438; font-weight: bold; }
+          .note { margin-top: 16px; color: #4b5563; }
+        </style>
+      </head>
+      <body>
+        <h1>Tomcat → MySQL DB 연결 상태</h1>
+        <table>
+          <tr><th>Connection Status</th><td class="<%= connectionStatus.equals("SUCCESS") ? "ok" : "fail" %>"><%= connectionStatus %></td></tr>
+          <tr><th>Configured DB Host</th><td><%= dbHost %></td></tr>
+          <tr><th>Resolved DB IP</th><td><%= resolvedIp %></td></tr>
+          <tr><th>Configured DB Region</th><td><%= dbRegion %></td></tr>
+          <tr><th>Connected DB Hostname</th><td><%= dbHostname %></td></tr>
+          <tr><th>Current Database</th><td><%= currentDatabase %></td></tr>
+          <tr><th>DB Version</th><td><%= dbVersion %></td></tr>
+          <tr><th>DB Time</th><td><%= dbNow %></td></tr>
+          <tr><th>Web Server Time</th><td><%= ZonedDateTime.now() %></td></tr>
+          <tr><th>Error</th><td><%= errorMessage %></td></tr>
+        </table>
+        <p class="note">이 페이지는 Tomcat VM에서 MySQL로 실제 JDBC 접속을 시도하고 DB Host/IP/Region 정보를 표시합니다.</p>
+      </body>
+      </html>
+
+runcmd:
+  - cp /usr/share/java/mariadb-java-client.jar /var/lib/tomcat9/lib/mariadb-java-client.jar || true
+  - chown tomcat:tomcat /var/lib/tomcat9/lib/mariadb-java-client.jar || true
+  - systemctl enable tomcat9
+  - systemctl restart tomcat9
+  - systemctl status tomcat9 --no-pager
