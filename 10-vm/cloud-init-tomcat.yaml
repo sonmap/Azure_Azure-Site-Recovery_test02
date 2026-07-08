@@ -1,0 +1,24 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+packages:
+  - tomcat9
+  - curl
+
+write_files:
+  - path: /var/lib/tomcat9/webapps/ROOT/index.html
+    owner: tomcat:tomcat
+    permissions: '0644'
+    content: |
+      <html>
+        <head><title>ASR Tomcat Lab</title></head>
+        <body>
+          <h1>ASR Tomcat Lab</h1>
+          <p>Tomcat 8080 is running on this VM.</p>
+        </body>
+      </html>
+
+runcmd:
+  - systemctl enable tomcat9
+  - systemctl restart tomcat9
+  - systemctl status tomcat9 --no-pager
