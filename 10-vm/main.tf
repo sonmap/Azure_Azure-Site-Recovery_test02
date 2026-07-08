@@ -33,6 +33,7 @@ resource "azurerm_network_interface" "nic" {
   tags = {
     managed_by = "terraform"
     purpose    = "asr-dr-lab"
+    role       = each.value.role
   }
 }
 
@@ -51,6 +52,8 @@ resource "azurerm_linux_virtual_machine" "vm" {
   network_interface_ids = [
     azurerm_network_interface.nic[each.key].id
   ]
+
+  custom_data = base64encode(file("${path.module}/cloud-init-tomcat.yaml"))
 
   admin_ssh_key {
     username   = each.value.admin_username
@@ -74,5 +77,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
     managed_by  = "terraform"
     purpose     = "asr-dr-lab"
     replication = "asr-source"
+    role        = each.value.role
+    service     = "tomcat-8080"
   }
 }
