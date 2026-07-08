@@ -1,2 +1,2 @@
 key,automation_account_name,automation_rg,location,vault_rg,vault_name,dr_resource_group_name
- default,aa-asr-dr-jpe,rg-asr-vault-jpe,japaneast,rg-asr-vault-jpe,rsv-asr-dr-jpe,rg-asr-dr-jpe
+default,aa-asr-dr-jpe,rg-asr-vault-jpe,japaneast,rg-asr-vault-jpe,rsv-asr-dr-jpe,rg-asr-dr-jpe
